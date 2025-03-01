@@ -1,0 +1,230 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaper Reflexs</title>
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #333;
+}
+
+.light .game-container {
+  background-color: #f0f0f0;
+}
+
+.dark .game-container {
+  background-color: #333;
+}
+
+.target {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  background-color: blue;
+  border-radius: 50%;
+}
+
+.score {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 24px;
+  color: white;
+}
+
+.dark .score {
+  color: white;
+}
+
+.hidden {
+  display: none;
+}
+
+.hidden-canvas {
+  display: none;
+}
+
+.start-screen {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: white;
+}
+</style>
+</head>
+<body class="dark">
+<div class="game-container">
+  <div class="score">Score: 0</div>
+</div>
+<canvas class="hidden-canvas"></canvas>
+<div class="start-screen">
+  <h1>Reaper Reflexs</h1>
+  <button id="start-button" onclick="startGame()">Start Game</button>
+</div>
+<script>
+const gameContainer = document.querySelector('.game-container');
+const scoreElement = document.querySelector('.score');
+const hiddenCanvas = document.querySelector('.hidden-canvas');
+const startScreen = document.querySelector('.start-screen');
+let score = 0;
+let misses = 0;
+let timer = 45;
+let timerInterval;
+let gameStarted = false;
+let cooldown = false;
+
+function createTarget() {
+  const existingTargets = document.querySelectorAll('.target');
+  if (existingTargets.length >= 3) {
+    return;
+  }
+
+  const target = document.createElement('div');
+  target.classList.add('target');
+  let x = Math.random() * (window.innerWidth - 80);
+  let y = Math.random() * (window.innerHeight - 80);
+
+  // Check if the new target overlaps with existing targets
+  for (let i = 0; i < existingTargets.length; i++) {
+    const existingTarget = existingTargets[i];
+    const existingRect = existingTarget.getBoundingClientRect();
+    const newRect = { left: x, top: y, right: x + 80, bottom: y + 80 };
+
+    if (
+      newRect.left < existingRect.right &&
+      newRect.right > existingRect.left &&
+      newRect.top < existingRect.bottom &&
+      newRect.bottom > existingRect.top
+    ) {
+      // Overlaps, so reposition
+      x = Math.random() * (window.innerWidth - 80);
+      y = Math.random() * (window.innerHeight - 80);
+      i = -1; // Restart the loop
+    }
+  }
+
+  target.style.top = y + 'px';
+  target.style.left = x + 'px';
+  gameContainer.appendChild(target);
+}
+
+function checkHit(event) {
+  if (!gameStarted || cooldown) {
+    return;
+  }
+
+  const targets = document.querySelectorAll('.target');
+  let hit = false;
+
+  targets.forEach(target => {
+    const targetRect = target.getBoundingClientRect();
+
+    if (
+      event.clientX >= targetRect.left &&
+      event.clientX <= targetRect.right &&
+      event.clientY >= targetRect.top &&
+      event.clientY <= targetRect.bottom
+    ) {
+      gameContainer.removeChild(target);
+      createTarget();
+      score++;
+      scoreElement.textContent = 'Score: ' + score;
+      hit = true;
+    }
+  });
+
+  if (!hit) {
+    endGame();
+  }
+
+  if (score === 50) {
+    endGame();
+    showCredits();
+  }
+}
+
+function endGame() {
+  clearInterval(timerInterval);
+  gameContainer.querySelectorAll('.target').forEach(target => gameContainer.removeChild(target));
+  gameContainer.innerHTML += '<div class="end-screen" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white;"><h1>Game Over</h1><br><button onclick="restartGame()">Play Again</button></div>';
+}
+
+function toggleScore() {
+  scoreElement.classList.toggle('hidden');
+}
+
+function showCredits() {
+  gameContainer.classList.add('hidden');
+  hiddenCanvas.classList.remove('hidden-canvas');
+  const ctx = hiddenCanvas.getContext('2d');
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+  ctx.font = '24px Arial';
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'center';
+  ctx.fillText('Congratulations!', hiddenCanvas.width / 2, hiddenCanvas.height / 2 - 50);
+  ctx.font = '18px Arial';
+  ctx.fillText('Developed by Ahmad AL_Sayed', hiddenCanvas.width / 2, hiddenCanvas.height / 2);
+  ctx.font = '16px Arial';
+  ctx.fillText('Play Again', hiddenCanvas.width / 2, hiddenCanvas.height - 20);
+  hiddenCanvas.addEventListener('click', restartGame);
+}
+
+function restartGame() {
+  clearInterval(timerInterval);
+  timer = 40;
+  timerInterval = setInterval(() => {
+    if (timer === 0) {
+      endGame();
+      clearInterval(timerInterval);
+    } else {
+      timer--;
+    }
+  }, 1000);
+  gameContainer.classList.remove('hidden');
+  hiddenCanvas.classList.add('hidden-canvas');
+  score = 0; // Reset score to 0
+  misses = 0;
+  scoreElement.textContent = 'Score: ' + score;
+  gameContainer.querySelector('.end-screen').remove();
+  gameStarted = false;
+  startScreen.classList.remove('hidden');
+}
+
+function startGame() {
+  if (gameStarted) {
+    return;
+  }
+
+  gameStarted = true;
+  startScreen.classList.add('hidden');
+  document.getElementById('start-button').disabled = true;
+  cooldown = true;
+  setTimeout(() => {
+    document.getElementById('start-button').disabled = false;
+    cooldown = false;
+  }, 1000);
+  timerInterval = setInterval(() => {
+    if (timer === 0) {
+      endGame();
+      clearInterval(timerInterval);
+    } else {
+      timer--;
+    }
+  }, 1000);
+  for (let i = 0; i < 10; i++) {
+    createTarget();
+  }
+}
+
+document.addEventListener('click', checkHit);
+
+</script>
+</body>
+</html>
